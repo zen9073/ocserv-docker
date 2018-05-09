@@ -1,4 +1,4 @@
-FROM ubuntu:trusty
+FROM ubuntu:18.04
 MAINTAINER Wyatt Pan <wppurking@gmail.com>
 
 ADD ./certs /opt/certs
@@ -11,12 +11,7 @@ WORKDIR /etc/ocserv
 RUN echo "Asia/Shanghai" > /etc/timezone
 
 # install compiler, dependencies, tools , dnsmasq
-RUN apt-get update && apt-get install -y \
-    build-essential wget xz-utils libgnutls28-dev \
-    libev-dev libwrap0-dev libpam0g-dev libseccomp-dev libreadline-dev \
-    libnl-route-3-dev libkrb5-dev liboath-dev libtalloc-dev \
-    libhttp-parser-dev libpcl1-dev libopts25-dev autogen pkg-config nettle-dev \
-    gnutls-bin gperf liblockfile-bin nuttcp lcov iptables unzip dnsmasq \
+RUN apt-get update && apt-get install -y wget gnutls-bin iptables unzip dnsmasq ocserv \
     && rm -rf /var/lib/apt/lists/*
 
 # configuration dnsmasq
@@ -27,30 +22,7 @@ RUN mkdir -p /temp && cd /temp \
     && cp *.conf /etc/dnsmasq.d/ \
     && cd / && rm -rf /temp
 
-# configuration lz4
-RUN mkdir -p /temp && cd /temp \
-    && wget https://github.com/lz4/lz4/releases/latest -O lz4.html \
-    && export lz4_version=$(cat lz4.html | grep -m 1 -o 'v[0-9]\.[0-9]\.[0-9]') \
-    && export lz4_suffix=$(cat lz4.html | grep -m 1 -o '[0-9]\.[0-9]\.[0-9]') \
-    && wget https://github.com/lz4/lz4/archive/$lz4_version.tar.gz \
-    && tar xvf $lz4_version.tar.gz \
-    && cd lz4-$lz4_suffix \
-    && make install \
-    && ln -sf /usr/local/lib/liblz4.* /usr/lib/ \
-    && cd / && rm -rf /temp
-
-# configuration ocserv
-RUN mkdir -p /temp && cd /temp \
-    && wget https://ocserv.gitlab.io/www/download.html \
-    && export ocserv_version=$(cat download.html | grep -o '[0-9]*\.[0-9]*\.[0-9]*') \
-    && wget ftp://ftp.infradead.org/pub/ocserv/ocserv-$ocserv_version.tar.xz \
-    && tar xvf ocserv-$ocserv_version.tar.xz \
-    && cd ocserv-$ocserv_version \
-    && ./configure --prefix=/usr --sysconfdir=/etc --with-local-talloc \
-    && make && make install \
-    && cd / && rm -rf /temp
-
-# generate sll keys
+# generate tls keys
 RUN cd /opt/certs && ls \
     && ca_cn=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired authority name/$ca_cn/g' /opt/certs/ca-tmp" \
     && ca_org=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1) && bash -c "sed -i 's/Your desired orgnization name/$ca_org/g' /opt/certs/ca-tmp" \
